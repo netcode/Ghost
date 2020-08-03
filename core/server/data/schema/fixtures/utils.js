@@ -13,7 +13,6 @@ const fixtures = require('./fixtures');
 // Private
 let matchFunc;
 
-let matchObj;
 let fetchRelationData;
 let findRelationFixture;
 let findModelFixture;
@@ -56,20 +55,6 @@ matchFunc = function matchFunc(match, key, value) {
         key = key === 0 && value ? value : key;
         return item.get(match) === key;
     };
-};
-
-matchObj = function matchObj(match, item) {
-    const matchObj = {};
-
-    if (_.isArray(match)) {
-        _.each(match, function (matchProp) {
-            matchObj[matchProp] = item.get(matchProp);
-        });
-    } else {
-        matchObj[match] = item.get(match);
-    }
-
-    return matchObj;
 };
 
 /**
@@ -173,7 +158,7 @@ addFixturesForRelation = function addFixturesForRelation(relationFixture, option
                 toItems = _.reject(toItems, function (item) {
                     return fromItem
                         .related(relationFixture.from.relation)
-                        .findWhere(matchObj(relationFixture.to.match, item));
+                        .find(matchFunc(relationFixture.to.match, item));
                 });
 
                 if (toItems && toItems.length > 0) {
