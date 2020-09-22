@@ -388,7 +388,7 @@
   resolved "https://registry.yarnpkg.com/@tryghost/constants/-/constants-0.1.1.tgz#f92f9e5938c3bc1839fbc16353009a106bbd19ee"
   integrity sha512-CTLFnSz0XREKZqDUn7yoBWnsVoUa4dWOJrz/3Dk55IVSIaPAG/qcgKCOmroZ9f1IyJZFIrqCRfPOO9k0mUaWoA==
 
-"@tryghost/errors@0.2.4", "@tryghost/errors@^0.2.4":
+"@tryghost/errors@0.2.4", "@tryghost/errors@^0.2.3", "@tryghost/errors@^0.2.4":
   version "0.2.4"
   resolved "https://registry.yarnpkg.com/@tryghost/errors/-/errors-0.2.4.tgz#873107f0915667852f86e616a8698eddf7b1f59e"
   integrity sha512-U0S/oeRCvYDe2Uuzx+D7dKQDW91D24wGm0cP90wf3EOzJH82imYFYgRXT4FZ6ypnraSSC74IFPT/+2Kyp9CnFQ==
@@ -4505,7 +4505,14 @@ image-extensions@~1.1.0:
   resolved "https://registry.yarnpkg.com/image-extensions/-/image-extensions-1.1.0.tgz#b8e6bf6039df0056e333502a00b6637a3105d894"
   integrity sha1-uOa/YDnfAFbjM1AqALZjejEF2JQ=
 
-image-size@0.8.3, image-size@^0.8.1:
+image-size@0.9.1:
+  version "0.9.1"
+  resolved "https://registry.yarnpkg.com/image-size/-/image-size-0.9.1.tgz#da39bc42b80cd33b143b229a10cf023968d0f1ba"
+  integrity sha512-yBo6xGGjiWtApYroCGR9wTvaIgande5vmAfTYIld5ss5kN4tyDG5lrW1qGomOXgB05ss7GLXLpDYXEiFqSqkzg==
+  dependencies:
+    queue "6.0.1"
+
+image-size@^0.8.1:
   version "0.8.3"
   resolved "https://registry.yarnpkg.com/image-size/-/image-size-0.8.3.tgz#f0b568857e034f29baffd37013587f2c0cad8b46"
   integrity sha512-SMtq1AJ+aqHB45c3FsB4ERK0UCiA2d3H1uq8s+8T0Pf8A3W4teyBQyaFaktH6xvZqh+npwlKU7i4fJo0r7TYTg==
