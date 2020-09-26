@@ -144,6 +144,25 @@ module.exports = {
         }
     },
 
+    generateToken: {
+        headers: {},
+        permissions: {
+            docName: 'user',
+            method: 'edit',
+            identifier(frame) {
+                return frame.options.context.user;
+            }
+        },
+        query(frame) {
+            return models.User.generateToken(frame.options).then((model) => {
+                if (model.wasChanged()) {
+                    this.headers.cacheInvalidate = true;
+                }
+                return model;
+            });
+        }
+    },
+
     changePassword: {
         validation: {
             docName: 'password',

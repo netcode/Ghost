@@ -77,6 +77,8 @@ module.exports = function apiRoutes() {
     router.put('/users/:id', mw.authAdminApi, http(apiCanary.users.edit));
     router.del('/users/:id', mw.authAdminApi, http(apiCanary.users.destroy));
 
+    router.post('/users/generate_token', mw.authAdminApi, http(apiCanary.users.generateToken)); //works with both generate and regenerate
+
     // ## Tags
     router.get('/tags', mw.authAdminApi, http(apiCanary.tags.browse));
     router.get('/tags/:id', mw.authAdminApi, http(apiCanary.tags.read));

@@ -11,6 +11,8 @@ const {gravatar} = require('../lib/image');
 const {pipeline} = require('@tryghost/promise');
 const validation = require('../data/validation');
 const permissions = require('../services/permissions');
+const crypto = require('crypto');
+
 const activeStates = ['active', 'warn-1', 'warn-2', 'warn-3', 'warn-4'];
 
 /**
@@ -30,6 +32,8 @@ User = ghostBookshelf.Model.extend({
     defaults: function defaults() {
         return {
             password: security.identifier.uid(50),
+            //Todo: improve identifier uid in security package above ↑ to use crypto randombytes, then replace the below line ↓ with security package 
+            api_token: crypto.createHash('sha256').update(crypto.randomBytes(24)).digest('hex'),
             visibility: 'public',
             status: 'active'
         };
@@ -978,6 +982,18 @@ User = ghostBookshelf.Model.extend({
                 return userWithEmail;
             }
         });
+    },
+
+    generateToken: async function generateToken(unfilteredOptions){
+        const options = this.filterOptions(unfilteredOptions, 'generateToken');
+        const currentUserId = options.context.user;
+        const newToken = crypto.createHash('sha256').update(crypto.randomBytes(24)).digest('hex');
+
+        const user = await this.forge({id: currentUserId}).fetch(options);
+
+        const updatedUser = await user.save({api_token: newToken});
+        
+        return updatedUser;
     },
     inactiveStates: inactiveStates
 });

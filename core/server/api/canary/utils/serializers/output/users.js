@@ -49,5 +49,15 @@ module.exports = {
         frame.response = {
             users: models.map(model => model.toJSON(frame.options))
         };
+    },
+
+    generateToken(model, apiConfig, frame) {
+        debug('generateToken');
+        frame.response = {
+            user: {
+                id: model.get('id'),
+                api_token: model.get('api_token')
+            }
+        };
     }
 };
