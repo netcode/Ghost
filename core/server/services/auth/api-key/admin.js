@@ -11,16 +11,25 @@ let JWT_OPTIONS = {
 };
 
 /**
- * Remove 'Ghost' from raw authorization header and extract the JWT token.
- * Eg. Authorization: Ghost ${JWT}
+ * Extract 'Ghost' auth type and  JWT token from raw authorization header.
+ * Eg. Authorization: Ghost* ${JWT}
  * @param {string} header
+ * @returns {Object} {scheme,token}
  */
 const _extractTokenFromHeader = function extractTokenFromHeader(header) {
     const [scheme, token] = header.split(' ');
-
-    if (/^Ghost$/i.test(scheme)) {
-        return token;
+    const allwedScheme = ['ghost', 'ghosttoken']; //Its in lower case to do the comparison case insensitive
+    
+    //Ignore any authorization header that is not Ghost
+    //Accept Ghost auth headers, ex: Ghost ${JWT}, GhostToken ${JWT}
+    if (!allwedScheme.includes(scheme.toLowerCase())){
+        return {scheme: null, token: null};
     }
+
+    return {
+        scheme: scheme.toLowerCase(), //to save the caller function(s) to do this step
+        token
+    };
 };
 
 /**
@@ -33,6 +42,75 @@ const _extractTokenFromUrl = function extractTokenFromUrl(reqUrl) {
     return query.token;
 };
 
+/**
+ * Decode the JWT token
+ * @param {string} token JWT to be decoded
+ * @returns {Array} [apiKeyId, error] each one can be null but not at the same time
+ */
+const _decodeJWT = function decodeJWTToken(jwtToken){ //eslint-disable-line no-unused-vars
+    const decoded = jwt.decode(jwtToken, {complete: true});
+    
+    if (!decoded || !decoded.header) {
+        return [ 
+            null, 
+            new errors.BadRequestError({
+                message: i18n.t('errors.middleware.auth.invalidToken'),
+                code: 'INVALID_JWT'
+            }) 
+        ];
+    }
+
+    const apiKeyId = decoded.header.kid;
+    if (!apiKeyId) {
+        return [ 
+            null, 
+            new errors.BadRequestError({
+                message: i18n.t('errors.middleware.auth.adminApiKidMissing'),
+                code: 'MISSING_ADMIN_API_KID'
+            }) 
+        ];
+    }
+
+    return [apiKeyId , null]; //finally no error
+};
+
+/**
+ * Verify JWT token 
+ * @param {*} req 
+ * @param {string} jwtToken 
+ * @param {string} secret 
+ * @param {*} jwtOptions 
+ * @returns {*} error | null
+ */
+const _verifyJWT = function verifyJWTToken(req, jwtToken, secret, jwtOptions){ //eslint-disable-line no-unused-vars
+    // Decoding from hex and transforming into bytes is here to
+    // keep comparison of the bytes that are stored in the secret.
+    // Useful context:
+    // https://github.com/auth0/node-jsonwebtoken/issues/208#issuecomment-231861138
+    const jwtSecret = Buffer.from(secret, 'hex');
+    const {pathname} = url.parse(req.originalUrl);
+    const [hasMatch, version = 'v2', api = 'admin'] = pathname.match(/ghost\/api\/([^/]+)\/([^/]+)\/(.+)*/); // eslint-disable-line no-unused-vars
+    // ensure the token was meant for this api version
+    const options = Object.assign({
+        audience: new RegExp(`\/?${version}\/${api}\/?$`) // eslint-disable-line no-useless-escape
+    }, jwtOptions);
+
+    try {
+        jwt.verify(jwtToken, jwtSecret, options);
+    } catch (err) {
+        if (err.name === 'TokenExpiredError' || err.name === 'JsonWebTokenError') {
+            return new errors.UnauthorizedError({
+                message: i18n.t('errors.middleware.auth.invalidTokenWithMessage', {message: err.message}),
+                code: 'INVALID_JWT',
+                err
+            });
+        }
+
+        // unknown error
+        return new errors.InternalServerError({err});
+    }
+};
+
 const authenticate = (req, res, next) => {
     // CASE: we don't have an Authorization header so allow fallthrough to other
     // auth middleware or final "ensure authenticated" check
@@ -40,7 +118,7 @@ const authenticate = (req, res, next) => {
         req.api_key = null;
         return next();
     }
-    const token = _extractTokenFromHeader(req.headers.authorization);
+    const {scheme, token} = _extractTokenFromHeader(req.headers.authorization);
 
     if (!token) {
         return next(new errors.UnauthorizedError({
@@ -48,8 +126,15 @@ const authenticate = (req, res, next) => {
             code: 'INVALID_AUTH_HEADER'
         }));
     }
+    //Integration API Tokens
+    if (scheme === 'ghost'){
+        return authenticateWithToken(req, res, next, {token, JWT_OPTIONS});
+    }
 
-    return authenticateWithToken(req, res, next, {token, JWT_OPTIONS});
+    //Personal API Token
+    if (scheme === 'ghosttoken'){
+        return authenticateWithPersonalToken(req, res, next, {token, JWT_OPTIONS});
+    }
 };
 
 const authenticateWithUrl = (req, res, next) => {
@@ -79,22 +164,9 @@ const authenticateWithUrl = (req, res, next) => {
  *   https://tools.ietf.org/html/rfc7519#section-4.1.3
  */
 const authenticateWithToken = (req, res, next, {token, JWT_OPTIONS}) => {
-    const decoded = jwt.decode(token, {complete: true});
-
-    if (!decoded || !decoded.header) {
-        return next(new errors.BadRequestError({
-            message: i18n.t('errors.middleware.auth.invalidToken'),
-            code: 'INVALID_JWT'
-        }));
-    }
-
-    const apiKeyId = decoded.header.kid;
-
-    if (!apiKeyId) {
-        return next(new errors.BadRequestError({
-            message: i18n.t('errors.middleware.auth.adminApiKidMissing'),
-            code: 'MISSING_ADMIN_API_KID'
-        }));
+    const [apiKeyId, decodeError] = _decodeJWT(token);
+    if (decodeError){
+        return next(decodeError);
     }
 
     models.ApiKey.findOne({id: apiKeyId}).then((apiKey) => {
@@ -112,37 +184,47 @@ const authenticateWithToken = (req, res, next, {token, JWT_OPTIONS}) => {
             }));
         }
 
-        // Decoding from hex and transforming into bytes is here to
-        // keep comparison of the bytes that are stored in the secret.
-        // Useful context:
-        // https://github.com/auth0/node-jsonwebtoken/issues/208#issuecomment-231861138
-        const secret = Buffer.from(apiKey.get('secret'), 'hex');
-
-        const {pathname} = url.parse(req.originalUrl);
-        const [hasMatch, version = 'v2', api = 'admin'] = pathname.match(/ghost\/api\/([^/]+)\/([^/]+)\/(.+)*/); // eslint-disable-line no-unused-vars
-
-        // ensure the token was meant for this api version
-        const options = Object.assign({
-            audience: new RegExp(`\/?${version}\/${api}\/?$`) // eslint-disable-line no-useless-escape
-        }, JWT_OPTIONS);
-
-        try {
-            jwt.verify(token, secret, options);
-        } catch (err) {
-            if (err.name === 'TokenExpiredError' || err.name === 'JsonWebTokenError') {
-                return next(new errors.UnauthorizedError({
-                    message: i18n.t('errors.middleware.auth.invalidTokenWithMessage', {message: err.message}),
-                    code: 'INVALID_JWT',
-                    err
-                }));
-            }
-
-            // unknown error
-            return next(new errors.InternalServerError({err}));
+        const verifyError = _verifyJWT(req,token,apiKey.get('secret'),JWT_OPTIONS);
+        if (verifyError){
+            return next(verifyError);
         }
 
         // authenticated OK, store the api key on the request for later checks and logging
         req.api_key = apiKey;
+        next(); 
+    }).catch((err) => {
+        next(new errors.InternalServerError({err}));
+    });
+};
+
+/**
+ * Authenticate using user personal API token
+ * @param {*} req 
+ * @param {*} res 
+ * @param {*} next 
+ * @param {*} param3 
+ */
+const authenticateWithPersonalToken = (req,res,next, {token, JWT_OPTIONS}) => {
+    const [userId, decodeError] = _decodeJWT(token);
+    if (decodeError){
+        return next(decodeError);
+    }
+
+    models.User.findOne({id: userId}).then((user) => {
+        if (!user) {
+            return next(new errors.UnauthorizedError({
+                message: i18n.t('errors.middleware.auth.unknownAdminApiKey'),
+                code: 'UNKNOWN_ADMIN_API_KEY'
+            }));
+        }
+
+        const verifyError = _verifyJWT(req,token,user.get('api_token'),JWT_OPTIONS);
+        if (verifyError){
+            return next(verifyError);
+        }
+
+        // authenticated OK, store the api key on the request for later checks and logging
+        req.user = user;
         next();
     }).catch((err) => {
         next(new errors.InternalServerError({err}));

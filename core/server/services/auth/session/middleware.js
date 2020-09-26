@@ -20,7 +20,9 @@ function SessionMiddleware({sessionService}) {
     async function authenticate(req, res, next) {
         try {
             const user = await sessionService.getUserForSession(req, res);
-            req.user = user;
+            if (user){ //dont override the req.user if there is no user retrived from the database
+                req.user = user;
+            }
             next();
         } catch (err) {
             next(err);
