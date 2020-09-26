@@ -427,6 +427,11 @@
                     "name": "Auth Stripe Connect for Members",
                     "action_type": "auth",
                     "object_type": "members_stripe_connect"
+                },
+                {
+                    "name": "Generate Personal API Token",
+                    "action_type": "generateToken",
+                    "object_type": "user"
                 }
             ]
         },
