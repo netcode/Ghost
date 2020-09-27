@@ -25,6 +25,12 @@ const tag = (attrs, frame) => {
 };
 
 const author = (attrs, frame) => {
+    //protect the api_token from leakage 
+    //TODO: needs to be unit tested
+    if (localUtils.isContentAPI(frame) || frame.options.context.user !== attrs.id){
+        delete attrs.api_token;
+    }
+
     if (localUtils.isContentAPI(frame)) {
         delete attrs.created_at;
         delete attrs.updated_at;
