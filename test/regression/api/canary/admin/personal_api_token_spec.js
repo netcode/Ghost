@@ -5,13 +5,11 @@ const testUtils = require('../../../../utils');
 const localUtils = require('./utils');
 const ghost = testUtils.startGhost;
 
-
 describe('Peronal API Token', function () {
     let request;
     let otherUser;
     describe('As Owner', function () {
         before(function () {
-
             return ghost()
                 .then(function () {
                     request = supertest.agent(config.get('url'));
@@ -37,7 +35,7 @@ describe('Peronal API Token', function () {
                 .expect(200)
                 .then((res) => {
                     const jsonResponse = res.body;
-                    should.exist(jsonResponse.users[0].api_token)
+                    should.exist(jsonResponse.users[0].api_token);
                     should.notEqual(jsonResponse.users[0].api_token, null);
                 });
         });
@@ -62,23 +60,22 @@ describe('Peronal API Token', function () {
                 .expect(200)
                 .then((res) => {
                     const jsonResponse = res.body;
-                    should.exist(jsonResponse.user.api_token)
+                    should.exist(jsonResponse.user.api_token);
                     should.notEqual(jsonResponse.user.api_token, null);
                     return jsonResponse.user.api_token;
                 })
-                .then((api_token)=> {
+                .then((api_token) => {
                     return request.get(localUtils.API.getApiQuery(`users/me/`))
-                            .set('Origin', config.get('url'))
-                            .expect('Content-Type', /json/)
-                            .expect('Cache-Control', testUtils.cacheRules.private)
-                            .expect(200)
-                            .then((res) => {
-                                const jsonResponse = res.body;
-                                should.exist(jsonResponse.users[0].api_token)
-                                should.equal(jsonResponse.users[0].api_token, api_token);
-                            });
+                        .set('Origin', config.get('url'))
+                        .expect('Content-Type', /json/)
+                        .expect('Cache-Control', testUtils.cacheRules.private)
+                        .expect(200)
+                        .then((res) => {
+                            const jsonResponse = res.body;
+                            should.exist(jsonResponse.users[0].api_token);
+                            should.equal(jsonResponse.users[0].api_token, api_token);
+                        });
                 });
         });
-
     });
 });
