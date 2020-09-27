@@ -26,9 +26,8 @@ const tag = (attrs, frame) => {
 
 const author = (attrs, frame) => {
     //protect the api_token from leakage 
-    //TODO: needs to be unit tested
-    if (localUtils.isContentAPI(frame) || frame.options.context.user !== attrs.id){
-        delete attrs.api_token;
+    if (frame.options.context.user !== attrs.id){
+        attrs.api_token = null;
     }
 
     if (localUtils.isContentAPI(frame)) {
@@ -43,6 +42,9 @@ const author = (attrs, frame) => {
 
         // Extra properties removed from canary
         delete attrs.tour;
+
+        //no need to expose api_token 
+        delete attrs.api_token;
 
         // We are standardising on returning null from the Content API for any empty values
         if (attrs.twitter === '') {

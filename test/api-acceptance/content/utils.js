@@ -47,7 +47,8 @@ const expectedProperties = {
             'updated_at',
             'updated_by',
             'last_seen',
-            'status'
+            'status',
+            'api_token'
         )
         // v2 API doesn't return unused fields
         .without('accessibility', 'locale', 'tour', 'visibility')
